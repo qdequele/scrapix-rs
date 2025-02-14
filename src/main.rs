@@ -1,6 +1,7 @@
 mod config;
 mod crawler;
 mod scraper;
+mod meilisearch;
 
 use clap::{Parser, Subcommand};
 use std::fs;

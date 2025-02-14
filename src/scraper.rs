@@ -4,9 +4,11 @@ use scraper::{Html, Selector};
 use std::collections::HashMap;
 use spider::page::Page;
 use spider::url::Url;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ScraperResult {
+    pub id: String,
     pub url: String,
     pub title: Option<String>,
     pub h1: Option<Vec<String>>,
@@ -35,6 +37,7 @@ impl PageScraper {
 
     pub fn scrape_page(&self, page: &Page) -> ScraperResult {
         let mut result = ScraperResult {
+            id: uuid::Uuid::new_v4().to_string(),
             url: page.get_url().to_string(),
             title: None,
             h1: None,
@@ -134,13 +137,7 @@ impl PageScraper {
             if let Ok(p_selector) = Selector::parse("p, span, td, th, li") {
                 let p_texts: Vec<String> = document.select(&p_selector)
                     .map(|el| {
-                        let mut text = el.text().collect::<String>();
-                        
-                        // Extract attributes
-                        for attr in el.value().attrs() {
-                            text.push_str(&format!(" [{}=\"{}\"]", attr.0, attr.1));
-                        }
-                        text
+                        el.text().collect::<String>()
                     })
                     .collect();
                 if !p_texts.is_empty() {

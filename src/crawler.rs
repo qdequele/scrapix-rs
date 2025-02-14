@@ -5,12 +5,14 @@ use crate::scraper::ScraperResult;
 use scraper::{Html, Selector};
 use spider::url::Url;
 use crate::scraper::PageScraper;
+use crate::meilisearch::MeilisearchUploader;
+use serde::{Serialize, Deserialize};
 
 pub struct Crawler {
     config: CrawlerConfig,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Resource {
     pub url: String,
     pub title: String,
@@ -39,17 +41,15 @@ impl Crawler {
         }
     }
 
-    // Helper function to clean URLs: remove fragments and all query parameters
+    // Helper function to clean URLs: keep only scheme, domain, and path
     fn clean_url(url: Url) -> Url {
-        let mut cleaned_url = url.clone();
-        
-        // Remove fragment (anchor)
-        cleaned_url.set_fragment(None);
-        
-        // Remove all query parameters
-        cleaned_url.set_query(None);
+        let scheme = url.scheme().to_string();
+        let host = url.host_str().unwrap_or("").to_string();
+        let path = url.path().to_string();
 
-        cleaned_url
+        // Reconstruct URL with only scheme, host, and path
+        Url::parse(&format!("{}://{}{}", scheme, host, path))
+            .unwrap_or(url)
     }
 
     pub async fn crawl(&self) -> Result<(), Box<dyn Error>> {
@@ -104,8 +104,6 @@ impl Crawler {
             let base_domain = base_domain.clone();
             async move {
                 while let Ok(page) = receiver.recv().await {
-                    println!("Crawling: {}", page.get_url());
-
                     let result = scraper.scrape_page(&page);
 
                     // Queue new URLs found in the page
@@ -129,7 +127,6 @@ impl Crawler {
                             }
                         }
                     }
-                    println!("Scraped: {}", result.url);
                     results.push(result);
                     guard.inc();
                 }
@@ -142,10 +139,6 @@ impl Crawler {
 
         // Get and display all visited links
         let links = website.get_all_links_visited().await;
-        println!("\nAll visited links:");
-        for link in links.iter() {
-            println!("- {}", link.as_ref());
-        }
 
         // Wait for processing to complete and collect results
         let results = process_handle.await?;
@@ -161,6 +154,12 @@ impl Crawler {
         // Send results to webhook if configured
         if let Some(webhook_url) = &self.config.webhook_url {
             self.send_to_webhook(webhook_url, &results).await?;
+        }
+
+        // If Meilisearch is configured, upload the results
+        if let Some(meilisearch_config) = &self.config.meilisearch {
+            let uploader = MeilisearchUploader::new(meilisearch_config.clone());
+            uploader.upload_documents(results).await?;
         }
 
         Ok(())

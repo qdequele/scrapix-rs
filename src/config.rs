@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use crate::meilisearch::MeilisearchConfig;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum CrawlingMode {
@@ -57,6 +58,9 @@ pub struct CrawlerConfig {
     
     #[serde(default)]
     pub blacklist: Option<Vec<String>>,
+
+    #[serde(default)]
+    pub meilisearch: Option<MeilisearchConfig>,
 }
 
 impl Default for CrawlerConfig {
@@ -74,6 +78,7 @@ impl Default for CrawlerConfig {
             webhook_url: None,
             whitelist: None,
             blacklist: None,
+            meilisearch: None,
         }
     }
 } 
