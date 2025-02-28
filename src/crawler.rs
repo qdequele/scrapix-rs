@@ -1,12 +1,11 @@
 use crate::config::{CrawlerConfig, CrawlingMode, ResourceType};
+use crate::meilisearch::MeilisearchUploader;
+use crate::scraper::{PageScraper, ScraperResult};
+use scraper::{Html, Selector};
+use serde::{Deserialize, Serialize};
+use spider::url::Url;
 use spider::website::Website;
 use std::error::Error;
-use crate::scraper::ScraperResult;
-use scraper::{Html, Selector};
-use spider::url::Url;
-use crate::scraper::PageScraper;
-use crate::meilisearch::MeilisearchUploader;
-use serde::{Serialize, Deserialize};
 
 pub struct Crawler {
     config: CrawlerConfig,
@@ -26,11 +25,9 @@ impl Crawler {
 
     // Helper function to get domain without TLD
     fn get_base_domain(url: &str) -> Result<String, Box<dyn Error>> {
-        let parsed_url = Url::parse(url)
-            .map_err(|e| format!("Failed to parse URL: {}", e))?;
-        
-        let host = parsed_url.host_str()
-            .ok_or("Failed to get host from URL")?;
+        let parsed_url = Url::parse(url).map_err(|e| format!("Failed to parse URL: {}", e))?;
+
+        let host = parsed_url.host_str().ok_or("Failed to get host from URL")?;
 
         // Split by dots and take the domain part (usually the second-to-last part)
         let parts: Vec<&str> = host.split('.').collect();
@@ -48,15 +45,14 @@ impl Crawler {
         let path = url.path().to_string();
 
         // Reconstruct URL with only scheme, host, and path
-        Url::parse(&format!("{}://{}{}", scheme, host, path))
-            .unwrap_or(url)
+        Url::parse(&format!("{}://{}{}", scheme, host, path)).unwrap_or(url)
     }
 
     pub async fn crawl(&self) -> Result<(), Box<dyn Error>> {
         let base_domain = Self::get_base_domain(&self.config.url)?;
 
         let mut website = Website::new(&self.config.url)
-            .with_depth(3)  // You might want to make this configurable in CrawlerConfig
+            .with_depth(3) // You might want to make this configurable in CrawlerConfig
             .with_respect_robots_txt(true)
             .with_subdomains(self.config.subdomains)
             .with_delay(20)
@@ -115,9 +111,11 @@ impl Crawler {
                                     if let Ok(absolute_url) = base_url.join(href) {
                                         // Clean the URL first
                                         let cleaned_url = Self::clean_url(absolute_url);
-                                        
+
                                         // Extract domain without TLD and compare
-                                        if let Ok(host_domain) = Self::get_base_domain(cleaned_url.as_str()) {
+                                        if let Ok(host_domain) =
+                                            Self::get_base_domain(cleaned_url.as_str())
+                                        {
                                             if host_domain == base_domain {
                                                 let _ = queue.send(cleaned_url.into());
                                             }
@@ -165,9 +163,17 @@ impl Crawler {
         Ok(())
     }
 
-    async fn send_to_webhook(&self, webhook_url: &str, results: &[ScraperResult]) -> Result<(), Box<dyn Error>> {
+    async fn send_to_webhook(
+        &self,
+        webhook_url: &str,
+        results: &[ScraperResult],
+    ) -> Result<(), Box<dyn Error>> {
         // TODO: Implement webhook sending
-        println!("Would send {} results to webhook: {}", results.len(), webhook_url);
+        println!(
+            "Would send {} results to webhook: {}",
+            results.len(),
+            webhook_url
+        );
         Ok(())
     }
-} 
+}

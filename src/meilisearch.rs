@@ -1,7 +1,7 @@
+use crate::scraper::ScraperResult;
 use meilisearch_sdk::client::Client;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use crate::scraper::ScraperResult;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MeilisearchConfig {
@@ -24,7 +24,10 @@ impl MeilisearchUploader {
         }
     }
 
-    pub async fn upload_documents(&self, documents: Vec<ScraperResult>) -> Result<(), Box<dyn Error>> {
+    pub async fn upload_documents(
+        &self,
+        documents: Vec<ScraperResult>,
+    ) -> Result<(), Box<dyn Error>> {
         let index = self.client.index(&self.index_name);
 
         // Add documents to the index
@@ -33,7 +36,10 @@ impl MeilisearchUploader {
         // Wait for the task to complete
         task.wait_for_completion(&self.client, None, None).await?;
 
-        println!("Successfully uploaded {} documents to Meilisearch", documents.len());
+        println!(
+            "Successfully uploaded {} documents to Meilisearch",
+            documents.len()
+        );
         Ok(())
     }
-} 
+}

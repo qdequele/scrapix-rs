@@ -1,6 +1,6 @@
+use crate::meilisearch::MeilisearchConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::meilisearch::MeilisearchConfig;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum CrawlingMode {
@@ -31,31 +31,31 @@ pub struct CrawlerConfig {
 
     #[serde(default)]
     pub subdomains: bool,
-    
+
     #[serde(default)]
     pub resources: Option<Vec<ResourceType>>,
-    
+
     #[serde(default)]
     pub split_content: bool,
-    
+
     #[serde(default)]
     pub extract_markdown: bool,
-    
+
     #[serde(default)]
     pub extract_metadata: bool,
-    
+
     #[serde(default)]
     pub extract_custom_fields: Option<HashMap<String, String>>,
-    
+
     #[serde(default)]
     pub extract_schema_org: bool,
-    
+
     #[serde(default)]
     pub webhook_url: Option<String>,
-    
+
     #[serde(default)]
     pub whitelist: Option<Vec<String>>,
-    
+
     #[serde(default)]
     pub blacklist: Option<Vec<String>>,
 
@@ -81,4 +81,4 @@ impl Default for CrawlerConfig {
             meilisearch: None,
         }
     }
-} 
+}

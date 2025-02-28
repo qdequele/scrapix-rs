@@ -1,4 +1,9 @@
 {
-  "url": "https://meilisearch.com/blog",
-  "mode": "Http"
+  "url": "https:/meilisearch.com/blog",
+  "mode": "Http",
+  "meilisearch": {
+    "url": "https://edge.meilisearch.com",
+    "api_key": "a98cb0a735fe095c55b8562d8d392f942a4d3e21",
+    "index_name": "meilisearch"
+  }
 }

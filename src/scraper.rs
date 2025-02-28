@@ -1,10 +1,9 @@
 use crate::config::CrawlerConfig;
 use crate::crawler::Resource;
 use scraper::{Html, Selector};
-use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 use spider::page::Page;
-use spider::url::Url;
-use serde::{Serialize, Deserialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ScraperResult {
@@ -81,7 +80,8 @@ impl PageScraper {
         if !self.config.split_content {
             // Extract headings and paragraphs
             if let Ok(h1_selector) = Selector::parse("h1") {
-                let h1_texts: Vec<String> = document.select(&h1_selector)
+                let h1_texts: Vec<String> = document
+                    .select(&h1_selector)
                     .map(|el| el.text().collect::<String>())
                     .collect();
                 if !h1_texts.is_empty() {
@@ -90,7 +90,8 @@ impl PageScraper {
             }
 
             if let Ok(h2_selector) = Selector::parse("h2") {
-                let h2_texts: Vec<String> = document.select(&h2_selector)
+                let h2_texts: Vec<String> = document
+                    .select(&h2_selector)
                     .map(|el| el.text().collect::<String>())
                     .collect();
                 if !h2_texts.is_empty() {
@@ -99,7 +100,8 @@ impl PageScraper {
             }
 
             if let Ok(h3_selector) = Selector::parse("h3") {
-                let h3_texts: Vec<String> = document.select(&h3_selector)
+                let h3_texts: Vec<String> = document
+                    .select(&h3_selector)
                     .map(|el| el.text().collect::<String>())
                     .collect();
                 if !h3_texts.is_empty() {
@@ -108,7 +110,8 @@ impl PageScraper {
             }
 
             if let Ok(h4_selector) = Selector::parse("h4") {
-                let h4_texts: Vec<String> = document.select(&h4_selector)
+                let h4_texts: Vec<String> = document
+                    .select(&h4_selector)
                     .map(|el| el.text().collect::<String>())
                     .collect();
                 if !h4_texts.is_empty() {
@@ -117,7 +120,8 @@ impl PageScraper {
             }
 
             if let Ok(h5_selector) = Selector::parse("h5") {
-                let h5_texts: Vec<String> = document.select(&h5_selector)
+                let h5_texts: Vec<String> = document
+                    .select(&h5_selector)
                     .map(|el| el.text().collect::<String>())
                     .collect();
                 if !h5_texts.is_empty() {
@@ -126,7 +130,8 @@ impl PageScraper {
             }
 
             if let Ok(h6_selector) = Selector::parse("h6") {
-                let h6_texts: Vec<String> = document.select(&h6_selector)
+                let h6_texts: Vec<String> = document
+                    .select(&h6_selector)
                     .map(|el| el.text().collect::<String>())
                     .collect();
                 if !h6_texts.is_empty() {
@@ -135,10 +140,9 @@ impl PageScraper {
             }
 
             if let Ok(p_selector) = Selector::parse("p, span, td, th, li") {
-                let p_texts: Vec<String> = document.select(&p_selector)
-                    .map(|el| {
-                        el.text().collect::<String>()
-                    })
+                let p_texts: Vec<String> = document
+                    .select(&p_selector)
+                    .map(|el| el.text().collect::<String>())
                     .collect();
                 if !p_texts.is_empty() {
                     result.p = Some(p_texts);
@@ -160,7 +164,10 @@ impl PageScraper {
             // Extract title
             if let Ok(title_selector) = Selector::parse("title") {
                 if let Some(title_element) = document.select(&title_selector).next() {
-                    metadata.insert("title".to_string(), title_element.text().collect::<String>());
+                    metadata.insert(
+                        "title".to_string(),
+                        title_element.text().collect::<String>(),
+                    );
                 }
             }
 
@@ -195,16 +202,17 @@ impl PageScraper {
     fn extract_custom_fields(&self, document: &Html, result: &mut ScraperResult) {
         if let Some(custom_fields) = &self.config.extract_custom_fields {
             let mut field_results = HashMap::new();
-            
+
             for (key, selector_str) in custom_fields {
                 if let Ok(selector) = Selector::parse(selector_str) {
-                    let value: String = document.select(&selector)
+                    let value: String = document
+                        .select(&selector)
                         .map(|element| element.text().collect::<String>())
                         .collect::<Vec<String>>()
                         .join(" ")
                         .trim()
                         .to_string();
-                    
+
                     if !value.is_empty() {
                         field_results.insert(key.clone(), value);
                     }
@@ -222,9 +230,7 @@ impl PageScraper {
             if let Ok(script_selector) = Selector::parse("script[type='application/ld+json']") {
                 let schema_data: Vec<serde_json::Value> = document
                     .select(&script_selector)
-                    .filter_map(|element| {
-                        element.text().collect::<String>().parse().ok()
-                    })
+                    .filter_map(|element| element.text().collect::<String>().parse().ok())
                     .collect();
 
                 if !schema_data.is_empty() {
@@ -277,4 +283,4 @@ impl PageScraper {
             }
         }
     }
-} 
+}
