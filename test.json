@@ -1,5 +1,5 @@
 {
-  "url": "https:/meilisearch.com/blog",
+  "url": "https://meilisearch.com/blog",
   "mode": "Http",
   "meilisearch": {
     "url": "https://edge.meilisearch.com",

@@ -61,6 +61,26 @@ pub struct CrawlerConfig {
 
     #[serde(default)]
     pub meilisearch: Option<MeilisearchConfig>,
+
+    /// Maximum crawl depth (defaults to 3)
+    #[serde(default)]
+    pub crawl_depth: Option<u32>,
+
+    /// Delay between requests in milliseconds (defaults to 10)
+    #[serde(default)]
+    pub crawl_delay: Option<u64>,
+
+    /// Number of concurrent worker threads (defaults to 16)
+    #[serde(default)]
+    pub concurrency: Option<usize>,
+
+    /// Whether to respect robots.txt (defaults to true)
+    #[serde(default)]
+    pub respect_robots_txt: Option<bool>,
+
+    /// Batch size for Meilisearch uploads (defaults to 100)
+    #[serde(default)]
+    pub meilisearch_batch_size: Option<usize>,
 }
 
 impl Default for CrawlerConfig {
@@ -79,6 +99,11 @@ impl Default for CrawlerConfig {
             whitelist: None,
             blacklist: None,
             meilisearch: None,
+            crawl_depth: Some(3),
+            crawl_delay: Some(10),
+            concurrency: Some(16),
+            respect_robots_txt: Some(true),
+            meilisearch_batch_size: Some(100),
         }
     }
 }

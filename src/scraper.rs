@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use spider::page::Page;
 use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ScraperResult {
     pub id: String,
     pub url: String,
@@ -34,7 +34,90 @@ impl PageScraper {
         Self { config }
     }
 
+    // Helper function to extract text elements by selector
+    fn extract_elements(&self, document: &Html, selector_str: &str) -> Option<Vec<String>> {
+        if let Ok(selector) = Selector::parse(selector_str) {
+            let texts: Vec<String> = document
+                .select(&selector)
+                .map(|el| el.text().collect::<String>())
+                .collect();
+
+            if !texts.is_empty() {
+                return Some(texts);
+            }
+        }
+        None
+    }
+
+    // Helper function to extract a single text element
+    fn extract_single_element(&self, document: &Html, selector_str: &str) -> Option<String> {
+        if let Ok(selector) = Selector::parse(selector_str) {
+            if let Some(element) = document.select(&selector).next() {
+                return Some(element.text().collect::<String>());
+            }
+        }
+        None
+    }
+
+    // Helper function to extract meta tag content
+    fn extract_meta_tags(
+        &self,
+        document: &Html,
+        attribute_selector: &str,
+        name_attr: &str,
+        content_attr: &str,
+    ) -> HashMap<String, String> {
+        let mut meta_data = HashMap::new();
+
+        if let Ok(selector) = Selector::parse(attribute_selector) {
+            for element in document.select(&selector) {
+                if let (Some(name), Some(content)) = (
+                    element.value().attr(name_attr),
+                    element.value().attr(content_attr),
+                ) {
+                    meta_data.insert(name.to_string(), content.to_string());
+                }
+            }
+        }
+
+        meta_data
+    }
+
+    // Helper function to extract resources by selector
+    fn extract_resource_type(
+        &self,
+        document: &Html,
+        selector_str: &str,
+        url_attr: &str,
+        title_source: &str,
+        resource_type: crate::config::ResourceType,
+    ) -> Vec<Resource> {
+        let mut resources = Vec::new();
+
+        if let Ok(selector) = Selector::parse(selector_str) {
+            for element in document.select(&selector) {
+                if let Some(url) = element.value().attr(url_attr) {
+                    let title = match title_source {
+                        "text" => element.text().collect::<String>(),
+                        attr => element.value().attr(attr).unwrap_or_default().to_string(),
+                    };
+
+                    resources.push(Resource {
+                        url: url.to_string(),
+                        title,
+                        resource_type: resource_type.clone(),
+                    });
+                }
+            }
+        }
+
+        resources
+    }
+
     pub fn scrape_page(&self, page: &Page) -> ScraperResult {
+        // Use info level for scraping logs so the user can see activity
+        log::info!("Scraping page: {}", page.get_url());
+
         let mut result = ScraperResult {
             id: uuid::Uuid::new_v4().to_string(),
             url: page.get_url().to_string(),
@@ -69,85 +152,19 @@ impl PageScraper {
     }
 
     fn extract_title(&self, document: &Html, result: &mut ScraperResult) {
-        if let Ok(title_selector) = Selector::parse("title") {
-            if let Some(title_element) = document.select(&title_selector).next() {
-                result.title = Some(title_element.text().collect::<String>());
-            }
-        }
+        result.title = self.extract_single_element(document, "title");
     }
 
     fn extract_content(&self, document: &Html, result: &mut ScraperResult) {
         if !self.config.split_content {
-            // Extract headings and paragraphs
-            if let Ok(h1_selector) = Selector::parse("h1") {
-                let h1_texts: Vec<String> = document
-                    .select(&h1_selector)
-                    .map(|el| el.text().collect::<String>())
-                    .collect();
-                if !h1_texts.is_empty() {
-                    result.h1 = Some(h1_texts);
-                }
-            }
-
-            if let Ok(h2_selector) = Selector::parse("h2") {
-                let h2_texts: Vec<String> = document
-                    .select(&h2_selector)
-                    .map(|el| el.text().collect::<String>())
-                    .collect();
-                if !h2_texts.is_empty() {
-                    result.h2 = Some(h2_texts);
-                }
-            }
-
-            if let Ok(h3_selector) = Selector::parse("h3") {
-                let h3_texts: Vec<String> = document
-                    .select(&h3_selector)
-                    .map(|el| el.text().collect::<String>())
-                    .collect();
-                if !h3_texts.is_empty() {
-                    result.h3 = Some(h3_texts);
-                }
-            }
-
-            if let Ok(h4_selector) = Selector::parse("h4") {
-                let h4_texts: Vec<String> = document
-                    .select(&h4_selector)
-                    .map(|el| el.text().collect::<String>())
-                    .collect();
-                if !h4_texts.is_empty() {
-                    result.h4 = Some(h4_texts);
-                }
-            }
-
-            if let Ok(h5_selector) = Selector::parse("h5") {
-                let h5_texts: Vec<String> = document
-                    .select(&h5_selector)
-                    .map(|el| el.text().collect::<String>())
-                    .collect();
-                if !h5_texts.is_empty() {
-                    result.h5 = Some(h5_texts);
-                }
-            }
-
-            if let Ok(h6_selector) = Selector::parse("h6") {
-                let h6_texts: Vec<String> = document
-                    .select(&h6_selector)
-                    .map(|el| el.text().collect::<String>())
-                    .collect();
-                if !h6_texts.is_empty() {
-                    result.h6 = Some(h6_texts);
-                }
-            }
-
-            if let Ok(p_selector) = Selector::parse("p, span, td, th, li") {
-                let p_texts: Vec<String> = document
-                    .select(&p_selector)
-                    .map(|el| el.text().collect::<String>())
-                    .collect();
-                if !p_texts.is_empty() {
-                    result.p = Some(p_texts);
-                }
-            }
+            // Extract headings and paragraphs using helper method
+            result.h1 = self.extract_elements(document, "h1");
+            result.h2 = self.extract_elements(document, "h2");
+            result.h3 = self.extract_elements(document, "h3");
+            result.h4 = self.extract_elements(document, "h4");
+            result.h5 = self.extract_elements(document, "h5");
+            result.h6 = self.extract_elements(document, "h6");
+            result.p = self.extract_elements(document, "p, span, td, th, li");
         }
     }
 
@@ -161,37 +178,24 @@ impl PageScraper {
         if self.config.extract_metadata {
             let mut metadata = HashMap::new();
 
-            // Extract title
-            if let Ok(title_selector) = Selector::parse("title") {
-                if let Some(title_element) = document.select(&title_selector).next() {
-                    metadata.insert(
-                        "title".to_string(),
-                        title_element.text().collect::<String>(),
-                    );
-                }
+            // Extract title with helper method
+            if let Some(title) = self.extract_single_element(document, "title") {
+                metadata.insert("title".to_string(), title);
             }
 
-            // Extract meta tags
-            if let Ok(meta_selector) = Selector::parse("meta[name][content]") {
-                for element in document.select(&meta_selector) {
-                    if let Some(name) = element.value().attr("name") {
-                        if let Some(content) = element.value().attr("content") {
-                            metadata.insert(name.to_string(), content.to_string());
-                        }
-                    }
-                }
-            }
+            // Extract standard meta tags
+            let standard_meta =
+                self.extract_meta_tags(document, "meta[name][content]", "name", "content");
+            metadata.extend(standard_meta);
 
             // Extract OpenGraph meta tags
-            if let Ok(og_selector) = Selector::parse("meta[property^='og:'][content]") {
-                for element in document.select(&og_selector) {
-                    if let Some(property) = element.value().attr("property") {
-                        if let Some(content) = element.value().attr("content") {
-                            metadata.insert(property.to_string(), content.to_string());
-                        }
-                    }
-                }
-            }
+            let og_meta = self.extract_meta_tags(
+                document,
+                "meta[property^='og:'][content]",
+                "property",
+                "content",
+            );
+            metadata.extend(og_meta);
 
             if !metadata.is_empty() {
                 result.metadata = Some(metadata);
@@ -241,46 +245,39 @@ impl PageScraper {
     }
 
     fn extract_resources(&self, document: &Html, result: &mut ScraperResult) {
-        // Extract images
-        if let Ok(img_selector) = Selector::parse("img[src]") {
-            for img in document.select(&img_selector) {
-                if let Some(src) = img.value().attr("src") {
-                    let title = img.value().attr("alt").unwrap_or_default().to_string();
-                    result.resources.push(Resource {
-                        url: src.to_string(),
-                        title: title,
-                        resource_type: crate::config::ResourceType::Image,
-                    });
-                }
-            }
-        }
+        // Extract resources by type using the helper function
+        let mut resources = Vec::new();
 
-        // Expract PDF
-        if let Ok(pdf_selector) = Selector::parse("a[href$='.pdf']") {
-            for pdf in document.select(&pdf_selector) {
-                if let Some(href) = pdf.value().attr("href") {
-                    let title = pdf.text().collect::<String>().to_string();
-                    result.resources.push(Resource {
-                        url: href.to_string(),
-                        title: title,
-                        resource_type: crate::config::ResourceType::Pdf,
-                    });
-                }
-            }
-        }
+        // Extract images
+        let images = self.extract_resource_type(
+            document,
+            "img[src]",
+            "src",
+            "alt",
+            crate::config::ResourceType::Image,
+        );
+        resources.extend(images);
+
+        // Extract PDFs
+        let pdfs = self.extract_resource_type(
+            document,
+            "a[href$='.pdf']",
+            "href",
+            "text",
+            crate::config::ResourceType::Pdf,
+        );
+        resources.extend(pdfs);
 
         // Extract JSON files
-        if let Ok(json_selector) = Selector::parse("a[href$='.json']") {
-            for json in document.select(&json_selector) {
-                if let Some(href) = json.value().attr("href") {
-                    let title = json.text().collect::<String>().to_string();
-                    result.resources.push(Resource {
-                        url: href.to_string(),
-                        title: title,
-                        resource_type: crate::config::ResourceType::Json,
-                    });
-                }
-            }
-        }
+        let jsons = self.extract_resource_type(
+            document,
+            "a[href$='.json']",
+            "href",
+            "text",
+            crate::config::ResourceType::Json,
+        );
+        resources.extend(jsons);
+
+        result.resources = resources;
     }
 }
