@@ -10,6 +10,7 @@ use dashmap::DashMap;
 use spider::website::Website;
 use spider::CaseInsensitiveString;
 use std::error::Error;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Crawler {
@@ -54,34 +55,27 @@ impl Crawler {
 
         // Use a moderate channel capacity (100 is usually a good balance)
         // This allows enough buffering without causing the crawler to hang
-        let mut rx2 = website.subscribe(888).unwrap();
+        let mut rx2 = website.subscribe(16).unwrap();
 
-        let config_clone = self.config.clone();
-        let join_handle = tokio::spawn(async move {
-            let scraper = Scraper::new(config_clone);
-            let results = DashMap::new();
+        let scraper = Scraper::new(self.config.clone());
+        let results = Arc::new(DashMap::new());
+        tokio::spawn(async move {
+            while let Ok(page) = rx2.recv().await {
+                // Clone the resources for this task
+                let scraper_clone = scraper.clone();
+                let results_clone = Arc::clone(&results);
 
-            // Process pages until we receive an error (typically when the channel is closed)
-            loop {
-                match rx2.recv().await {
-                    Ok(res) => {
-                        // Extract URL once to avoid borrowing res multiple times
-                        let url = res.get_url().to_string();
+                tokio::spawn(async move {
+                    let url = page.get_url().to_string();
 
-                        if !results.contains_key(&url) {
-                            // Scrape the content of the page with scraper module
-                            let content = scraper.scrape_page(&res);
-                            results.insert(url, content);
-                        }
+                    if !results_clone.contains_key(&url) {
+                        // Scrape the content of the page with scraper module
+                        let content = scraper_clone.scrape_page(&page);
+                        results_clone.insert(url, content);
                     }
-                    Err(_) => {
-                        log::info!("Channel closed, processing complete");
-                        break;
-                    }
-                }
+                });
             }
-
-            results.into_iter().map(|(_, v)| v).collect()
+            log::info!("Scraped {} pages", results.len());
         });
 
         // Build the website
@@ -94,16 +88,10 @@ impl Crawler {
         // Start the crawl
         website.crawl().await;
 
-        // Close the subscription to signal the processor task to finish
-        // website.unsubscribe();
-
         // Get all visited links
         let links = website.get_all_links_visited().await;
         log::info!("Crawling completed, visited {} pages", links.len());
 
-        // Now that both the crawler and processor are done, await the join handle
-        let results: Vec<ScraperResult> = join_handle.await.unwrap();
-        log::info!("Scraped {} pages", results.len());
         Ok(())
     }
 }
