@@ -1,9 +1,15 @@
 use crate::config::CrawlerConfig;
-use crate::crawler::Resource;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use spider::page::Page;
 use std::collections::HashMap;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Resource {
+    pub url: String,
+    pub title: String,
+    pub resource_type: crate::config::ResourceType,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ScraperResult {
@@ -25,11 +31,12 @@ pub struct ScraperResult {
     pub resources: Vec<Resource>,
 }
 
-pub struct PageScraper {
+#[derive(Debug, Clone)]
+pub struct Scraper {
     config: CrawlerConfig,
 }
 
-impl PageScraper {
+impl Scraper {
     pub fn new(config: CrawlerConfig) -> Self {
         Self { config }
     }

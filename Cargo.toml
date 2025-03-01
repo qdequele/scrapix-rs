@@ -6,7 +6,12 @@ edition = "2021"
 [dependencies]
 meilisearch-sdk = "0.28.0"
 tokio = { version = "1.28", features = ["full"] }
-spider = "2.31.1"
+spider = { version = "2.31.4", features = [
+    "glob",
+    "cache_mem",
+    "sitemap",
+    "sync",
+] }
 clap = { version = "4.5.31", features = ["derive"] }
 serde = { version = "1.0.218", features = ["derive"] }
 serde_json = "1.0.139"
@@ -17,5 +22,8 @@ select = "0.6"
 futures = "0.3"
 scraper = "0.23.1"
 env_logger = "0.11"
-uuid = { version = "1.15.1", features = ["v4"] }
+uuid = { version = "1.15.1", features = ["v4", "serde"] }
 log = "0.4.26"
+num_cpus = "1.16.0"
+metrics = "0.24.1"
+dashmap = "6.1.0"

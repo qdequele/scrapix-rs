@@ -36,7 +36,7 @@ enum Commands {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let cli = Cli::parse();
 
     let env = Env::default()
@@ -75,22 +75,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return Ok(());
             }
 
-            let crawler = Crawler::new(crawler_config);
+            let crawler = Crawler::new(crawler_config.url.clone(), crawler_config);
 
-            println!("Starting crawler...");
-            let result = crawler.crawl().await;
+            log::info!("Starting crawler...");
+            crawler.crawl().await;
 
-            match result {
-                Ok(_) => {
-                    let duration = start.elapsed();
-                    println!("Crawl completed successfully in {:.2?}", duration);
-                    Ok(())
-                }
-                Err(e) => {
-                    println!("Crawl failed after {:.2?}: {}", start.elapsed(), e);
-                    Err(e)
-                }
-            }
+            log::info!("Crawl completed successfully");
+            Ok(())
         }
     }
 }
